@@ -40,19 +40,23 @@ jobs:
       - name: Check executable startup
         run: |
           $exe = Resolve-Path 'build/windows/x64/runner/Release/hikari_novel_flutter.exe'
-          $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden -PassThru
+          $errorLog = Join-Path $env:RUNNER_TEMP 'hikari-startup-stderr.log'
+          $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden -PassThru -RedirectStandardError $errorLog
           try {
             $ready = $false
             for ($attempt = 0; $attempt -lt 30; $attempt++) {
               Start-Sleep -Seconds 1
               $app.Refresh()
               if ($app.HasExited) { throw "App exited during startup: $($app.ExitCode)" }
-              if ($app.MainWindowHandle -ne 0) { $ready = $true; break }
+              if ($app.MainWindowHandle -ne 0 -and $app.MainWindowTitle -eq 'Hikari Novel') { $ready = $true; break }
             }
             if (!$ready) { throw 'App did not create a main window within 30 seconds' }
             Start-Sleep -Seconds 5
             $app.Refresh()
             if ($app.HasExited) { throw 'App exited after creating its window' }
+          } catch {
+            Get-Content $errorLog -ErrorAction SilentlyContinue
+            throw
           } finally {
             if (!$app.HasExited) { Stop-Process -Id $app.Id }
           }

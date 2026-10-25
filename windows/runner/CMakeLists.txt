@@ -6,12 +6,23 @@ project(runner LANGUAGES CXX)
 # work.
 #
 # Any new source files that you add to the application should be added here.
+# Wrap only optional TTS registration; preserve Flutter's generated plugin list.
+set(GENERATED_REGISTRANT "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${GENERATED_REGISTRANT}")
+file(READ "${GENERATED_REGISTRANT}" REGISTRANT_SOURCE)
+string(REPLACE "#include <flutter_tts/flutter_tts_plugin.h>"
+  "#include \"runner/tts_registration.h\"" REGISTRANT_SOURCE "${REGISTRANT_SOURCE}")
+string(REPLACE "FlutterTtsPluginRegisterWithRegistrar(" "RegisterTtsSafely("
+  REGISTRANT_SOURCE "${REGISTRANT_SOURCE}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/safe_plugin_registrant.cc" "${REGISTRANT_SOURCE}")
+
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
-  "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
+  "tts_registration.cpp"
+  "${CMAKE_CURRENT_BINARY_DIR}/safe_plugin_registrant.cc"
   "Runner.rc"
   "runner.exe.manifest"
 )
@@ -32,9 +43,10 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
-target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
-target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app flutter_wrapper_plugin)
+target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib" "runtimeobject.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+target_include_directories(${BINARY_NAME} PRIVATE "${FLUTTER_MANAGED_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)

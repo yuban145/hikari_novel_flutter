@@ -18,6 +18,7 @@ class TtsService extends GetxService {
   final FlutterTts _tts = FlutterTts();
 
   final enabled = false.obs;
+  final available = true.obs;
   final engine = RxnString();
   final voice = Rxn<Map<String, String>>();
   final rate = 0.5.obs;
@@ -48,6 +49,16 @@ class TtsService extends GetxService {
   static const List<String> _preferredLocales = <String>['zh-CN', 'zh-TW', 'zh-HK', 'en-US'];
 
   Future<void> init() async {
+    try {
+      await _initialize();
+    } catch (error) {
+      if (!Platform.isWindows || (error is! PlatformException && error is! MissingPluginException)) rethrow;
+      available.value = false;
+      enabled.value = false;
+    }
+  }
+
+  Future<void> _initialize() async {
     try {
       await _tts.awaitSpeakCompletion(true);
     } catch (_) {}
@@ -172,6 +183,7 @@ class TtsService extends GetxService {
   }
 
   Future<void> setEnabled(bool v) async {
+    if (!available.value) return;
     enabled.value = v;
     LocalStorageService.instance.setReaderTtsEnabled(v);
     if (!v) await stop();
