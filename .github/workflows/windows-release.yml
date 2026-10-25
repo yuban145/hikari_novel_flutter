@@ -17,6 +17,8 @@ jobs:
   windows:
     runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      PUB_HOSTED_URL: https://pub.flutter-io.cn
     defaults:
       run:
         shell: pwsh
