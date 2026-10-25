@@ -1,0 +1,51 @@
+name: Publish Android release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Android APK workflow run ID
+        required: true
+      release_tag:
+        description: Existing draft release tag
+        required: true
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Validate build and draft
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[-+a-zA-Z0-9.]*$ ]]
+          gh run view "$BUILD_RUN_ID" --json conclusion,name,headSha > run.json
+          jq -e '.conclusion == "success" and .name == "Android APK"' run.json
+          gh release view "$RELEASE_TAG" --json isDraft,targetCommitish > release.json
+          jq -e '.isDraft == true' release.json
+          test "$(jq -r .headSha run.json)" = "$(jq -r .targetCommitish release.json)"
+      - name: Download APK and generate checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$BUILD_RUN_ID" --name hikari-novel-android --dir assets
+          cd assets
+          mv app-release.apk "hikari-novel-${RELEASE_TAG#v}.apk"
+          sha256sum -- *.apk > SHA256SUMS.txt
+      - name: Upload assets and publish draft
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" assets/*.apk assets/SHA256SUMS.txt --clobber
+          gh release edit "$RELEASE_TAG" --draft=false
