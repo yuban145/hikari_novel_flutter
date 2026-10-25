@@ -41,7 +41,8 @@ jobs:
         run: |
           $exe = Resolve-Path 'build/windows/x64/runner/Release/hikari_novel_flutter.exe'
           $errorLog = Join-Path $env:RUNNER_TEMP 'hikari-startup-stderr.log'
-          $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden -PassThru -RedirectStandardError $errorLog
+          # A real visible-window launch is required for the first-frame check.
+          $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Normal -PassThru -RedirectStandardError $errorLog
           try {
             $ready = $false
             for ($attempt = 0; $attempt -lt 30; $attempt++) {
