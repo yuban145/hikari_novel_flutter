@@ -34,13 +34,18 @@ class LoginController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    if (webViewInitializationError != null) {
+      errorMsg = webViewInitializationError!;
+      pageState.value = PageState.error;
+      return;
+    }
     cookieManager.deleteAllCookies();
   }
 
   Future<void> saveCookie(WebUri uri) async {
     showLoading.value = false;
 
-    //存储cookie
+    //�洢cookie
     if (uri.toString().contains("wenku8") == true) {
       final getCookie = await cookieManager.getCookies(url: uri);
 
@@ -57,13 +62,13 @@ class LoginController extends GetxController {
           await _getUserInfo();
           await _refreshBookshelf();
         } catch (e) {
-          LocalStorageService.instance.setCookie(null); //清空cookie
+          LocalStorageService.instance.setCookie(null); //���cookie
           ApiService.instance.deleteCookie();
 
           final controller = inAppWebViewController;
           if (controller != null) {
             inAppWebViewController = null;
-            controller.dispose(); //销毁webview，停止加载网页
+            controller.dispose(); //����webview��ֹͣ������ҳ
           }
 
           errorMsg = e.toString();

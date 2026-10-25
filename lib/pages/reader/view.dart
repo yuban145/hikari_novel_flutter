@@ -12,6 +12,7 @@ import 'package:hikari_novel_flutter/pages/reader/widgets/reader_setting.dart';
 import 'package:hikari_novel_flutter/pages/reader/widgets/vertical_read_page.dart';
 import 'package:hikari_novel_flutter/widgets/state_page.dart';
 import 'package:intl/intl.dart';
+import 'package:hikari_novel_flutter/widgets/reader_keyboard_controls.dart';
 import 'package:hikari_novel_flutter/service/tts_service.dart';
 import 'package:hikari_novel_flutter/pages/reader/widgets/tts_floating_controller.dart';
 
@@ -85,149 +86,168 @@ class _ReaderPageState extends State<ReaderPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Obx(
-            () => controller.pageState.value == PageState.success
-                ? ReaderBackground(
+    return Obx(
+      () => ReaderKeyboardControls(
+        rightToLeft: controller.readerSettingsState.value.direction == ReaderDirection.rightToLeft,
+        onNext: () => _turnKeyboardPage(true),
+        onPrevious: () => _turnKeyboardPage(false),
+        onToggleControls: () => controller.showBar.toggle(),
+        child: Scaffold(
+          body: Stack(
+            children: [
+              Obx(
+                () => controller.pageState.value == PageState.success
+                    ? ReaderBackground(
+                        child: Obx(
+                          () => Padding(
+                            padding: EdgeInsets.only(bottom: _useOverlayBottomStatusBar() ? kStatusBarPadding + MediaQuery.of(context).padding.bottom : 0),
+                            child: _buildReadPage(context),
+                          ),
+                        ),
+                      )
+                    : Container(),
+              ),
+              Obx(() => Offstage(offstage: controller.pageState.value != PageState.loading, child: const LoadingPage())),
+              Obx(
+                () => Offstage(
+                  offstage: controller.pageState.value != PageState.error,
+                  child: ErrorMessage(msg: controller.errorMsg, action: controller.getContent),
+                ),
+              ),
+              _buildBottomStatusBar(context),
+              const TtsFloatingController(),
+              Obx(() {
+                //����
+                double statusBarHeight = MediaQuery.of(context).padding.top;
+                return AnimatedPositioned(
+                  top: controller.showBar.value ? 0 : -(kToolbarHeight + statusBarHeight),
+                  left: 0,
+                  right: 0,
+                  duration: Duration(milliseconds: 100),
+                  child: AppBar(backgroundColor: Theme.of(context).colorScheme.secondaryContainer, title: Text(controller.chapterTitle.value), titleSpacing: 0),
+                );
+              }),
+              Obx(() {
+                //����
+                double navigationBarHeight = MediaQuery.of(context).padding.bottom;
+                int bottomBarHeight = 100;
+                return AnimatedPositioned(
+                  left: 0,
+                  right: 0,
+                  bottom: controller.showBar.value ? 0 : -(navigationBarHeight + bottomBarHeight),
+                  duration: const Duration(milliseconds: 100),
+                  child: Container(
+                    height: navigationBarHeight + bottomBarHeight,
+                    color: Theme.of(context).colorScheme.secondaryContainer,
+                    alignment: Alignment.center,
                     child: Obx(
-                      () => Padding(
-                        padding: EdgeInsets.only(bottom: _useOverlayBottomStatusBar() ? kStatusBarPadding + MediaQuery.of(context).padding.bottom : 0),
-                        child: _buildReadPage(context),
-                      ),
-                    ),
-                  )
-                : Container(),
-          ),
-          Obx(() => Offstage(offstage: controller.pageState.value != PageState.loading, child: const LoadingPage())),
-          Obx(
-            () => Offstage(
-              offstage: controller.pageState.value != PageState.error,
-              child: ErrorMessage(msg: controller.errorMsg, action: controller.getContent),
-            ),
-          ),
-          _buildBottomStatusBar(context),
-          const TtsFloatingController(),
-          Obx(() {
-            //顶栏
-            double statusBarHeight = MediaQuery.of(context).padding.top;
-            return AnimatedPositioned(
-              top: controller.showBar.value ? 0 : -(kToolbarHeight + statusBarHeight),
-              left: 0,
-              right: 0,
-              duration: Duration(milliseconds: 100),
-              child: AppBar(backgroundColor: Theme.of(context).colorScheme.secondaryContainer, title: Text(controller.chapterTitle.value), titleSpacing: 0),
-            );
-          }),
-          Obx(() {
-            //底栏
-            double navigationBarHeight = MediaQuery.of(context).padding.bottom;
-            int bottomBarHeight = 100;
-            return AnimatedPositioned(
-              left: 0,
-              right: 0,
-              bottom: controller.showBar.value ? 0 : -(navigationBarHeight + bottomBarHeight),
-              duration: const Duration(milliseconds: 100),
-              child: Container(
-                height: navigationBarHeight + bottomBarHeight,
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                alignment: Alignment.center,
-                child: Obx(
-                  () => Column(
-                    children: [
-                      SizedBox(width: double.infinity, child: _buildProgressBar(context)),
-                      Row(
+                      () => Column(
                         children: [
-                          Expanded(
-                            child: IconButton(
-                              onPressed: () {
-                                if (controller.readerSettingsState.value.direction == ReaderDirection.rightToLeft) {
-                                  controller.nextChapter();
-                                } else {
-                                  controller.prevChapter();
-                                }
-                              },
-                              icon: const Icon(Icons.arrow_back),
-                            ),
-                          ),
-                          Expanded(
-                            child: IconButton(onPressed: () => _showCatalogue(context), icon: const Icon(Icons.list_alt)),
-                          ),
-                          Expanded(
-                            child: IconButton(
-                              onPressed: () => showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                showDragHandle: true,
-                                builder: (_) => Scaffold(
-                                  appBar: AppBar(
-                                    leading: IconButton(onPressed: Get.back, icon: const Icon(Icons.close)),
-                                    title: Text("setting".tr),
-                                  ),
-                                  body: ReaderSettingPage(),
+                          SizedBox(width: double.infinity, child: _buildProgressBar(context)),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: IconButton(
+                                  onPressed: () {
+                                    if (controller.readerSettingsState.value.direction == ReaderDirection.rightToLeft) {
+                                      controller.nextChapter();
+                                    } else {
+                                      controller.prevChapter();
+                                    }
+                                  },
+                                  icon: const Icon(Icons.arrow_back),
                                 ),
                               ),
-                              icon: const Icon(Icons.settings_outlined),
-                            ),
-                          ),
-                          TtsService.instance.enabled.value
-                              ? Expanded(
-                                  child: IconButton(
-                                    tooltip: "listen_to_books".tr,
-                                    onPressed: () async {
-                                      final tts = TtsService.instance;
-                                      final text = controller.text.value;
-                                      final cleaned = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-                                      if (cleaned.isEmpty) {
-                                        showSnackBar(message: "chapter_content_loading_tip".tr, context: context);
-                                        return;
-                                      }
-
-                                      if (tts.isPlaying.value) {
-                                        await tts.stop();
-                                        return;
-                                      }
-                                      if (tts.isPaused.value && tts.isSessionActive.value) {
-                                        await tts.resumeSession();
-                                        return;
-                                      }
-
-                                      await tts.startChapter(cleaned);
-                                    },
-                                    icon: Obx(() {
-                                      final tts = TtsService.instance;
-                                      if (tts.isPlaying.value) {
-                                        return const Icon(Icons.stop_circle_outlined);
-                                      }
-                                      return const Icon(Icons.play_circle_outline);
-                                    }),
+                              Expanded(
+                                child: IconButton(onPressed: () => _showCatalogue(context), icon: const Icon(Icons.list_alt)),
+                              ),
+                              Expanded(
+                                child: IconButton(
+                                  onPressed: () => showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    showDragHandle: true,
+                                    builder: (_) => Scaffold(
+                                      appBar: AppBar(
+                                        leading: IconButton(onPressed: Get.back, icon: const Icon(Icons.close)),
+                                        title: Text("setting".tr),
+                                      ),
+                                      body: ReaderSettingPage(),
+                                    ),
                                   ),
-                                )
-                              : Container(),
-                          Expanded(
-                            child: IconButton(
-                              onPressed: () {
-                                if (controller.readerSettingsState.value.direction == ReaderDirection.rightToLeft) {
-                                  controller.prevChapter();
-                                } else {
-                                  controller.nextChapter();
-                                }
-                              },
-                              icon: const Icon(Icons.arrow_forward),
-                            ),
+                                  icon: const Icon(Icons.settings_outlined),
+                                ),
+                              ),
+                              TtsService.instance.enabled.value
+                                  ? Expanded(
+                                      child: IconButton(
+                                        tooltip: "listen_to_books".tr,
+                                        onPressed: () async {
+                                          final tts = TtsService.instance;
+                                          final text = controller.text.value;
+                                          final cleaned = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+                                          if (cleaned.isEmpty) {
+                                            showSnackBar(message: "chapter_content_loading_tip".tr, context: context);
+                                            return;
+                                          }
+
+                                          if (tts.isPlaying.value) {
+                                            await tts.stop();
+                                            return;
+                                          }
+                                          if (tts.isPaused.value && tts.isSessionActive.value) {
+                                            await tts.resumeSession();
+                                            return;
+                                          }
+
+                                          await tts.startChapter(cleaned);
+                                        },
+                                        icon: Obx(() {
+                                          final tts = TtsService.instance;
+                                          if (tts.isPlaying.value) {
+                                            return const Icon(Icons.stop_circle_outlined);
+                                          }
+                                          return const Icon(Icons.play_circle_outline);
+                                        }),
+                                      ),
+                                    )
+                                  : Container(),
+                              Expanded(
+                                child: IconButton(
+                                  onPressed: () {
+                                    if (controller.readerSettingsState.value.direction == ReaderDirection.rightToLeft) {
+                                      controller.prevChapter();
+                                    } else {
+                                      controller.nextChapter();
+                                    }
+                                  },
+                                  icon: const Icon(Icons.arrow_forward),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            );
-          }),
-        ],
+                );
+              }),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  void _turnKeyboardPage(bool forward) {
+    if (controller.pageState.value != PageState.success) return;
+    if (controller.readerSettingsState.value.direction == ReaderDirection.upToDown) {
+      _verticalReadPageKey.currentState?.scrollPage(forward);
+    } else if (forward) {
+      controller.nextPage();
+    } else {
+      controller.prevPage();
+    }
   }
 
   Widget _buildReadPage(BuildContext context) {
@@ -323,12 +343,12 @@ class _ReaderPageState extends State<ReaderPage> {
         controller.currentIndex.value = index;
         controller.maxPage.value = max;
         if (max == 1 && index == 0) {
-          //仅一页的情况下
+          //��һҳ�������
           controller.horizontalProgress.value = 100;
-          controller.setReadHistory(); //立即更新历史阅读记录
+          controller.setReadHistory(); //����������ʷ�Ķ���¼
         } else if (max > 0) {
           controller.horizontalProgress.value = int.parse(((index + 1) / max * 100.0).toStringAsFixed(0)).clamp(0, 100);
-          //由controller的debounce监听currentIndex变化，判断是否更新历史阅读记录
+          //��controller��debounce����currentIndex�仯���ж��Ƿ������ʷ�Ķ���¼
         }
       },
       onViewImage: (index) => Get.toNamed(RoutePath.photo, arguments: {"gallery_mode": true, "list": controller.images, "index": index}),
@@ -535,12 +555,14 @@ class _ReaderPageState extends State<ReaderPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(DateFormat('HH:mm').format(controller.currentTime.value), style: TextStyle(fontSize: 13, color: textColor)),
-          const SizedBox(width: 8),
-          IconTheme(
-            data: IconThemeData(color: textColor),
-            child: _buildBattery(context, controller.batteryLevel.value),
-          ),
-          Text("${controller.batteryLevel.value}%", style: TextStyle(fontSize: 13, color: textColor)),
+          if (controller.batteryLevel.value >= 0) ...[
+            const SizedBox(width: 8),
+            IconTheme(
+              data: IconThemeData(color: textColor),
+              child: _buildBattery(context, controller.batteryLevel.value),
+            ),
+            Text("${controller.batteryLevel.value}%", style: TextStyle(fontSize: 13, color: textColor)),
+          ],
           const Spacer(),
           controller.readerSettingsState.value.direction == ReaderDirection.upToDown
               ? Text("${controller.verticalProgress.value} %", style: TextStyle(fontSize: 13, color: textColor))

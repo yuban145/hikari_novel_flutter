@@ -1,0 +1,87 @@
+name: Windows release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/windows-release.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Verify NuGet
+        run: nuget help
+      - name: Restore locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Test keyboard navigation
+        run: flutter test --no-pub
+      - name: Build Windows release
+        run: flutter build windows --release --no-pub
+      - name: Check executable startup
+        run: |
+          $exe = Resolve-Path 'build/windows/x64/runner/Release/hikari_novel_flutter.exe'
+          $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden -PassThru
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+              Start-Sleep -Seconds 1
+              $app.Refresh()
+              if ($app.HasExited) { throw "App exited during startup: $($app.ExitCode)" }
+              if ($app.MainWindowHandle -ne 0) { $ready = $true; break }
+            }
+            if (!$ready) { throw 'App did not create a main window within 30 seconds' }
+            Start-Sleep -Seconds 5
+            $app.Refresh()
+            if ($app.HasExited) { throw 'App exited after creating its window' }
+          } finally {
+            if (!$app.HasExited) { Stop-Process -Id $app.Id }
+          }
+      - name: Package portable app
+        run: |
+          $version = ((Select-String -Path pubspec.yaml -Pattern '^version: (.+)$').Matches.Groups[1].Value -split '\+')[0]
+          $tag = "v$version-windows.${{ github.run_number }}"
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $zip = "hikari-novel-$tag-windows-x64.zip"
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "dist/$zip"
+          $hash = (Get-FileHash "dist/$zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $zip" | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: hikari-novel-windows-x64
+          path: dist/*
+          if-no-files-found: error
+      - name: Publish Windows prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          @'
+          Windows x64 portable prerelease. Extract the entire archive before running Hikari Novel.
+
+          Includes WebView2 initialization handling, reader keyboard navigation and battery handling for desktop devices.
+          Requires Microsoft Edge WebView2 Runtime and Microsoft Visual C++ 2015-2022 x64 Redistributable.
+
+          Validation: Windows widget tests, release build and main-window startup check. Interactive login, reading and TTS still require manual verification.
+          '@ | Set-Content -Encoding utf8 release-notes.md
+          gh release create "$env:RELEASE_TAG" dist/* --target "$env:RELEASE_SHA" --prerelease --title "Hikari Novel $env:RELEASE_TAG" --notes-file release-notes.md
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed' }

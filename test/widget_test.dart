@@ -1,30 +1,54 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:hikari_novel_flutter/main.dart';
+import 'package:hikari_novel_flutter/widgets/reader_keyboard_controls.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('Page keys and RTL arrows navigate the reader', (tester) async {
+    var page = 0;
+    var toggled = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReaderKeyboardControls(
+          rightToLeft: true,
+          onNext: () => page++,
+          onPrevious: () => page--,
+          onToggleControls: () => toggled = !toggled,
+          child: const Scaffold(body: Text('Reader')),
+        ),
+      ),
+    );
     await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    expect(page, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    expect(page, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    expect(page, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    expect(page, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(page, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    expect(toggled, isTrue);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Editable fields do not trigger reader shortcuts', (tester) async {
+    var page = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReaderKeyboardControls(
+          onNext: () => page++,
+          onPrevious: () => page--,
+          onToggleControls: () {},
+          child: const Scaffold(body: TextField()),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(page, 0);
   });
 }

@@ -39,40 +39,42 @@ class LoginPage extends StatelessWidget {
         body: Stack(
           children: [
             Obx(
-              () => Offstage(
-                offstage: controller.pageState.value != PageState.success,
-                child: Column(
-                  children: [
-                    Obx(
-                      () => AnimatedContainer(
-                        curve: Curves.easeInOut,
-                        duration: const Duration(milliseconds: 350),
-                        height: controller.showLoading.value ? 4 : 0,
-                        child: LinearProgressIndicator(key: ValueKey(controller.loadingProgress), value: controller.loadingProgress / 100),
-                      ),
-                    ),
-                    Expanded(
-                      child: SafeArea(
-                        child: InAppWebView(
-                          key: controller.webViewKey,
-                          webViewEnvironment: webViewEnvironment,
-                          initialUrlRequest: URLRequest(url: WebUri(controller.url)),
-                          initialSettings: controller.settings,
-                          onWebViewCreated: (webController) {
-                            controller.inAppWebViewController = webController;
-                          },
-                          onLoadStart: (webController, webUri) {
-                            controller.currentUrl.value = webUri.toString();
-                          },
-                          onLoadStop: (webController, webUri) async {
-                            if (webUri != null) {
-                              controller.saveCookie(webUri);
-                            }
+              () => controller.pageState.value == PageState.error
+                  ? const SizedBox.shrink()
+                  : Offstage(
+                      offstage: controller.pageState.value != PageState.success,
+                      child: Column(
+                        children: [
+                          Obx(
+                            () => AnimatedContainer(
+                              curve: Curves.easeInOut,
+                              duration: const Duration(milliseconds: 350),
+                              height: controller.showLoading.value ? 4 : 0,
+                              child: LinearProgressIndicator(key: ValueKey(controller.loadingProgress), value: controller.loadingProgress / 100),
+                            ),
+                          ),
+                          Expanded(
+                            child: SafeArea(
+                              child: InAppWebView(
+                                key: controller.webViewKey,
+                                webViewEnvironment: webViewEnvironment,
+                                initialUrlRequest: URLRequest(url: WebUri(controller.url)),
+                                initialSettings: controller.settings,
+                                onWebViewCreated: (webController) {
+                                  controller.inAppWebViewController = webController;
+                                },
+                                onLoadStart: (webController, webUri) {
+                                  controller.currentUrl.value = webUri.toString();
+                                },
+                                onLoadStop: (webController, webUri) async {
+                                  if (webUri != null) {
+                                    controller.saveCookie(webUri);
+                                  }
 
-                            if (webUri.toString() == controller.url) {
-                              await webController.evaluateJavascript(
-                                //去掉<浏览器进程>选项，防止获取到临时cookie
-                                source: """
+                                  if (webUri.toString() == controller.url) {
+                                    await webController.evaluateJavascript(
+                                      //ȥ��<���������>ѡ���ֹ��ȡ����ʱcookie
+                                      source: """
                                   var select = document.querySelector('select[name="usecookie"]');
                                   if (select) {
                                     for (var i = 0; i < select.options.length; i++) {
@@ -83,19 +85,19 @@ class LoginPage extends StatelessWidget {
                                     }
                                   }
                                 """,
-                              );
-                            }
-                          },
-                          onProgressChanged: (webController, progress) {
-                            controller.showLoading.value = progress != 100;
-                            controller.loadingProgress.value = progress;
-                          },
-                        ),
+                                    );
+                                  }
+                                },
+                                onProgressChanged: (webController, progress) {
+                                  controller.showLoading.value = progress != 100;
+                                  controller.loadingProgress.value = progress;
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
             ),
             Obx(
               () => Offstage(

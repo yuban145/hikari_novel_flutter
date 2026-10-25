@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/foundation.dart';
@@ -17,9 +19,12 @@ import 'package:hikari_novel_flutter/service/db_service.dart';
 import 'package:hikari_novel_flutter/service/local_storage_service.dart';
 import 'package:hikari_novel_flutter/service/tts_service.dart';
 import 'package:jiffy/jiffy.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 final localhostServer = InAppLocalhostServer(documentRoot: 'assets');
 WebViewEnvironment? webViewEnvironment;
+String? webViewInitializationError;
 
 bool get _isAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
@@ -36,16 +41,25 @@ void main() async {
   await Get.put(TtsService()).init();
 
   if (_isWindows) {
-    final availableVersion = await WebViewEnvironment.getAvailableVersion();
-    assert(availableVersion != null, 'Failed to find an installed WebView2 runtime or non-stable Microsoft Edge installation.');
-    webViewEnvironment = await WebViewEnvironment.create(settings: WebViewEnvironmentSettings(userDataFolder: 'custom_path'));
+    try {
+      final availableVersion = await WebViewEnvironment.getAvailableVersion();
+      if (availableVersion == null) {
+        throw StateError('�밲װ Microsoft Edge WebView2 Runtime ������Ӧ�á�');
+      }
+      final support = await getApplicationSupportDirectory();
+      final userData = Directory(path.join(support.path, 'WebView2'));
+      await userData.create(recursive: true);
+      webViewEnvironment = await WebViewEnvironment.create(settings: WebViewEnvironmentSettings(userDataFolder: userData.path));
+    } catch (error) {
+      webViewInitializationError = '�޷���ʼ����¼��������밲װ���޸� Microsoft Edge WebView2 Runtime ������Ӧ�á�\n$error';
+    }
   } else if (_isAndroid) {
     await InAppWebViewController.setWebContentsDebuggingEnabled(kDebugMode);
   }
 
   _init();
   await Jiffy.setLocale(Util.getCurrentLocale().toString());
-  ApiService.instance.initCookie(); //初始化cookie
+  ApiService.instance.initCookie(); //��ʼ��cookie
 
   FlutterNativeSplash.remove();
 
@@ -57,11 +71,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //自定义颜色
+    //�Զ�����ɫ
     Color brandColor = LocalStorageService.instance.getCustomColor();
-    //深浅模式
+    //��ǳģʽ
     ThemeMode currentThemeValue = LocalStorageService.instance.getThemeMode();
-    //是否动态取色
+    //�Ƿ�̬ȡɫ
     bool isDynamicColor = LocalStorageService.instance.getIsDynamicColor();
 
     if (_isAndroid) {
@@ -86,11 +100,11 @@ class AndroidApp extends StatelessWidget {
         ColorScheme? lightColorScheme;
         ColorScheme? darkColorScheme;
         if (lightDynamic != null && darkDynamic != null && isDynamicColor) {
-          // dynamic取色成功
+          // dynamicȡɫ�ɹ�
           lightColorScheme = lightDynamic.harmonized();
           darkColorScheme = darkDynamic.harmonized();
         } else {
-          // dynamic取色失败，采用品牌色
+          // dynamicȡɫʧ�ܣ�����Ʒ��ɫ
           lightColorScheme = ColorScheme.fromSeed(seedColor: brandColor, brightness: Brightness.light);
           darkColorScheme = ColorScheme.fromSeed(seedColor: brandColor, brightness: Brightness.dark);
         }
@@ -144,22 +158,22 @@ class BuildMainApp extends StatelessWidget {
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: <TargetPlatform, PageTransitionsBuilder>{TargetPlatform.android: ZoomPageTransitionsBuilder(allowEnterRouteSnapshotting: false)},
         ),
-        //页面切换动画
+        //ҳ���л�����
         fontFamily: _isWindows ? "Microsoft YaHei" : null,
       ),
-      darkTheme: ThemeData(useMaterial3: true, colorScheme: darkColorScheme),
+      darkTheme: ThemeData(useMaterial3: true, colorScheme: darkColorScheme, fontFamily: _isWindows ? 'Microsoft YaHei' : null),
       themeMode: currentThemeValue,
       translations: AppTranslations(),
       locale: Util.getCurrentLocale(),
       fallbackLocale: Locale("zh", "CN"),
       getPages: AppRoutes.mainRoutePages,
-      initialRoute: LocalStorageService.instance.getCookie() != null ? RoutePath.main : RoutePath.welcome, //初始页面
+      initialRoute: LocalStorageService.instance.getCookie() != null ? RoutePath.main : RoutePath.welcome, //��ʼҳ��
     );
   }
 }
 
 void _init() {
-  // 小白条、导航栏沉浸
+  // С����������������
   if (_isAndroid) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(

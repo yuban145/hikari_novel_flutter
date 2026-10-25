@@ -57,6 +57,15 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# flutter_inappwebview_windows still uses C++/WinRT's legacy coroutine mode.
+# MSVC 14.51 rejects it unless its deprecation diagnostic is acknowledged.
+# Keep this workaround scoped to the plugin until it migrates to C++20.
+if(MSVC AND TARGET flutter_inappwebview_windows_plugin)
+  target_compile_definitions(flutter_inappwebview_windows_plugin PRIVATE
+    _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+  target_compile_options(flutter_inappwebview_windows_plugin PRIVATE /utf-8)
+endif()
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can
