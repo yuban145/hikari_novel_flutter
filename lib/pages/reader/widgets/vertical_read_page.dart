@@ -77,7 +77,7 @@ class VerticalReadPageState extends State<VerticalReadPage> {
     controller.addListener(_onScroll);
   }
 
-  //��������
+  //滚动监听
   void _onScroll() {
     if (!controller.hasClients) return;
     if (maxPositionPixels <= 0) return;
@@ -85,7 +85,7 @@ class VerticalReadPageState extends State<VerticalReadPage> {
     widget.onScroll(currentPositionPixels, maxPositionPixels);
   }
 
-  //��ʼλ�ûָ�
+  //初始位置恢复
   bool _restoreInitialPosition() {
     if (!controller.hasClients) return false;
 
@@ -102,8 +102,8 @@ class VerticalReadPageState extends State<VerticalReadPage> {
     return true;
   }
 
-  /// ������ת
-  /// - [value] ��ΧΪ0-100��ֵ
+  /// 进度跳转
+  /// - [value] 范围为0-100的值
   void jumpToProgress(double value) {
     if (!controller.hasClients) return;
 
@@ -117,7 +117,7 @@ class VerticalReadPageState extends State<VerticalReadPage> {
   void resetPage() {
     text = widget.text;
     textStyle = widget.style;
-    images = List<String>.from(widget.images); //ת��Ϊ������List<String>
+    images = List<String>.from(widget.images); //转换为纯净的List<String>
     padding = widget.padding;
     paraIndent = widget.paraIndent;
     paraSpacing = widget.paraSpacing;
@@ -145,8 +145,8 @@ class VerticalReadPageState extends State<VerticalReadPage> {
       return;
     }
 
-    //����Ƚ��Ű漸�β�����fontSize, textStyle���Ƿ��б仯
-    //���ﲻ��ʹ��"widget.xxx != oldWidget.xxx"�������ڱȽ϶��󣬶����ǱȽ����еĲ�����������ǳģʽ�л�����ҳ���ؽ������ؽ�TextStyle����ʵ������������
+    //这里比较排版几何参数（fontSize, textStyle）是否有变化
+    //这里不能使用"widget.xxx != oldWidget.xxx"，这是在比较对象，而不是比较其中的参数。比如深浅模式切换导致页面重建，会重建TextStyle对象实例，最终误判
     if (newSig != _lastLayoutSig) {
       _lastLayoutSig = newSig;
       resetPage();
@@ -193,7 +193,7 @@ class VerticalReadPageState extends State<VerticalReadPage> {
             style: textStyle,
             children: [
               WidgetSpan(
-                child: SizedBox(width: textStyle.fontSize! * paraIndent), //�����ֿ�������
+                child: SizedBox(width: textStyle.fontSize! * paraIndent), //按汉字宽度缩进
               ),
               TextSpan(text: content),
             ],
@@ -237,7 +237,7 @@ class VerticalReadPageState extends State<VerticalReadPage> {
     }
   }
 
-  //�Ű漸�β�����ǩ��
+  //排版几何参数的签名
   String _layoutSignature() {
     final s = widget.style;
     final p = widget.padding;

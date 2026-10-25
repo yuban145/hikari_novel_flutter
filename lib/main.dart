@@ -44,14 +44,14 @@ void main() async {
     try {
       final availableVersion = await WebViewEnvironment.getAvailableVersion();
       if (availableVersion == null) {
-        throw StateError('�밲װ Microsoft Edge WebView2 Runtime ������Ӧ�á�');
+        throw StateError('请安装 Microsoft Edge WebView2 Runtime 后重启应用。');
       }
       final support = await getApplicationSupportDirectory();
       final userData = Directory(path.join(support.path, 'WebView2'));
       await userData.create(recursive: true);
       webViewEnvironment = await WebViewEnvironment.create(settings: WebViewEnvironmentSettings(userDataFolder: userData.path));
     } catch (error) {
-      webViewInitializationError = '�޷���ʼ����¼��������밲װ���޸� Microsoft Edge WebView2 Runtime ������Ӧ�á�\n$error';
+      webViewInitializationError = '无法初始化登录浏览器。请安装或修复 Microsoft Edge WebView2 Runtime 后重启应用。\n$error';
     }
   } else if (_isAndroid) {
     await InAppWebViewController.setWebContentsDebuggingEnabled(kDebugMode);
@@ -59,7 +59,7 @@ void main() async {
 
   _init();
   await Jiffy.setLocale(Util.getCurrentLocale().toString());
-  ApiService.instance.initCookie(); //��ʼ��cookie
+  ApiService.instance.initCookie(); //初始化cookie
 
   FlutterNativeSplash.remove();
 
@@ -71,11 +71,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //�Զ�����ɫ
+    //自定义颜色
     Color brandColor = LocalStorageService.instance.getCustomColor();
-    //��ǳģʽ
+    //深浅模式
     ThemeMode currentThemeValue = LocalStorageService.instance.getThemeMode();
-    //�Ƿ�̬ȡɫ
+    //是否动态取色
     bool isDynamicColor = LocalStorageService.instance.getIsDynamicColor();
 
     if (_isAndroid) {
@@ -100,11 +100,11 @@ class AndroidApp extends StatelessWidget {
         ColorScheme? lightColorScheme;
         ColorScheme? darkColorScheme;
         if (lightDynamic != null && darkDynamic != null && isDynamicColor) {
-          // dynamicȡɫ�ɹ�
+          // dynamic取色成功
           lightColorScheme = lightDynamic.harmonized();
           darkColorScheme = darkDynamic.harmonized();
         } else {
-          // dynamicȡɫʧ�ܣ�����Ʒ��ɫ
+          // dynamic取色失败，采用品牌色
           lightColorScheme = ColorScheme.fromSeed(seedColor: brandColor, brightness: Brightness.light);
           darkColorScheme = ColorScheme.fromSeed(seedColor: brandColor, brightness: Brightness.dark);
         }
@@ -158,7 +158,7 @@ class BuildMainApp extends StatelessWidget {
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: <TargetPlatform, PageTransitionsBuilder>{TargetPlatform.android: ZoomPageTransitionsBuilder(allowEnterRouteSnapshotting: false)},
         ),
-        //ҳ���л�����
+        //页面切换动画
         fontFamily: _isWindows ? "Microsoft YaHei" : null,
       ),
       darkTheme: ThemeData(useMaterial3: true, colorScheme: darkColorScheme, fontFamily: _isWindows ? 'Microsoft YaHei' : null),
@@ -167,13 +167,13 @@ class BuildMainApp extends StatelessWidget {
       locale: Util.getCurrentLocale(),
       fallbackLocale: Locale("zh", "CN"),
       getPages: AppRoutes.mainRoutePages,
-      initialRoute: LocalStorageService.instance.getCookie() != null ? RoutePath.main : RoutePath.welcome, //��ʼҳ��
+      initialRoute: LocalStorageService.instance.getCookie() != null ? RoutePath.main : RoutePath.welcome, //初始页面
     );
   }
 }
 
 void _init() {
-  // С����������������
+  // 小白条、导航栏沉浸
   if (_isAndroid) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(

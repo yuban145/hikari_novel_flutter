@@ -73,7 +73,7 @@ class LoginPage extends StatelessWidget {
 
                                   if (webUri.toString() == controller.url) {
                                     await webController.evaluateJavascript(
-                                      //ȥ��<���������>ѡ���ֹ��ȡ����ʱcookie
+                                      //去掉<浏览器进程>选项，防止获取到临时cookie
                                       source: """
                                   var select = document.querySelector('select[name="usecookie"]');
                                   if (select) {

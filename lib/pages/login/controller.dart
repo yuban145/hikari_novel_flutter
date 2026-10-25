@@ -45,7 +45,7 @@ class LoginController extends GetxController {
   Future<void> saveCookie(WebUri uri) async {
     showLoading.value = false;
 
-    //�洢cookie
+    //存储cookie
     if (uri.toString().contains("wenku8") == true) {
       final getCookie = await cookieManager.getCookies(url: uri);
 
@@ -62,13 +62,13 @@ class LoginController extends GetxController {
           await _getUserInfo();
           await _refreshBookshelf();
         } catch (e) {
-          LocalStorageService.instance.setCookie(null); //���cookie
+          LocalStorageService.instance.setCookie(null); //清空cookie
           ApiService.instance.deleteCookie();
 
           final controller = inAppWebViewController;
           if (controller != null) {
             inAppWebViewController = null;
-            controller.dispose(); //����webview��ֹͣ������ҳ
+            controller.dispose(); //销毁webview，停止加载网页
           }
 
           errorMsg = e.toString();

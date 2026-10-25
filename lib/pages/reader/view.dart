@@ -117,7 +117,7 @@ class _ReaderPageState extends State<ReaderPage> {
               _buildBottomStatusBar(context),
               const TtsFloatingController(),
               Obx(() {
-                //����
+                //顶栏
                 double statusBarHeight = MediaQuery.of(context).padding.top;
                 return AnimatedPositioned(
                   top: controller.showBar.value ? 0 : -(kToolbarHeight + statusBarHeight),
@@ -128,7 +128,7 @@ class _ReaderPageState extends State<ReaderPage> {
                 );
               }),
               Obx(() {
-                //����
+                //底栏
                 double navigationBarHeight = MediaQuery.of(context).padding.bottom;
                 int bottomBarHeight = 100;
                 return AnimatedPositioned(
@@ -343,12 +343,12 @@ class _ReaderPageState extends State<ReaderPage> {
         controller.currentIndex.value = index;
         controller.maxPage.value = max;
         if (max == 1 && index == 0) {
-          //��һҳ�������
+          //仅一页的情况下
           controller.horizontalProgress.value = 100;
-          controller.setReadHistory(); //����������ʷ�Ķ���¼
+          controller.setReadHistory(); //立即更新历史阅读记录
         } else if (max > 0) {
           controller.horizontalProgress.value = int.parse(((index + 1) / max * 100.0).toStringAsFixed(0)).clamp(0, 100);
-          //��controller��debounce����currentIndex�仯���ж��Ƿ������ʷ�Ķ���¼
+          //由controller的debounce监听currentIndex变化，判断是否更新历史阅读记录
         }
       },
       onViewImage: (index) => Get.toNamed(RoutePath.photo, arguments: {"gallery_mode": true, "list": controller.images, "index": index}),

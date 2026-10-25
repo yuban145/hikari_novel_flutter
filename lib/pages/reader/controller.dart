@@ -57,7 +57,7 @@ class ReaderController extends GetxController {
 
   Rx<ReaderSettingsState> readerSettingsState = Rx(ReaderSettingsState.init());
 
-  ///�Ķ�������ʾ������
+  ///阅读界面显示操作栏
   RxBool showBar = false.obs;
 
   bool get isDualPage => switch (readerSettingsState.value.dualPageMode) {
@@ -68,23 +68,23 @@ class ReaderController extends GetxController {
 
   RxString chapterTitle = "".obs;
 
-  ///��ǰҳ�棬������
+  ///当前页面，横向用
   RxInt currentIndex = 0.obs;
   int initialHorizontalIndex = 0;
 
   RxInt horizontalProgress = 0.obs;
 
-  ///���ҳ��
+  ///最大页面
   RxInt maxPage = 0.obs;
 
-  ///�Ķ�λ�ã�������
+  ///阅读位置，竖向用
   RxInt currentLocation = 0.obs;
   int initialVerticalOffset = 0;
 
-  ///����ģʽ�£���ʾ��ǰ�Ķ����ȵİٷֱ�
+  ///竖向模式下，显示当前阅读进度的百分比
   RxInt verticalProgress = 0.obs;
 
-  ///�ı�����
+  ///文本内容
   RxString text = "".obs;
 
   RxList<String> images = RxList();
@@ -120,11 +120,11 @@ class ReaderController extends GetxController {
 
     checkFontFile(true);
 
-    getInitLocation(); //���ȸ�ֵһ�¶�Ӧ�ı�������ֹ��build�������޸�obx����
+    getInitLocation(); //事先赋值一下对应的变量，防止在build过程中修改obx变量
 
-    //�ӳٸ����Ķ���¼
-    //debounce / ever / interval ֻ���� Controller ���������ﴴ��һ��
-    //TODO ����Ҫ�Ż�
+    //延迟更新阅读记录
+    //debounce / ever / interval 只能在 Controller 生命周期里创建一次
+    //TODO 还需要优化
     debounce(currentLocation, (_) => setReadHistory(), time: const Duration(milliseconds: 150));
     debounce(currentIndex, (_) => setReadHistory(), time: const Duration(milliseconds: 150));
   }
@@ -145,11 +145,11 @@ class ReaderController extends GetxController {
     _applyReaderSystemUi(readerSettingsState.value.immersionMode);
 
     /*
-     1) ���������cidΪʲô��ֱ��ʹ�������<get cid>������Ϊ�����<get cid>����currentVolumeIndex��currentChapterIndex��
-        ��������ҪcurrentVolumeIndex��currentChapterIndex��ʱ����Ҫ����cid����catalogue�л�ȡ���Ӧ��VolumeIndex��ChapterIndex��
-     2) ��ΪgetContent()��������cid�������Ұѳ�ʼ��cid�Ĺ��̷ŵ���onReady������onInit�С�
+     1) 至于这里的cid为什么不直接使用上面的<get cid>，是因为上面的<get cid>依赖currentVolumeIndex和currentChapterIndex。
+        而我们想要currentVolumeIndex和currentChapterIndex的时候，需要根据cid，在catalogue中获取其对应的VolumeIndex和ChapterIndex。
+     2) 因为getContent()函数依赖cid，所以我把初始化cid的过程放到了onReady而不是onInit中。
      */
-    final listOnlyWithCid = catalogue.map((cat) => cat.chapters.map((chap) => chap.cid).toList()).toList(); //����ȡ����cid��list
+    final listOnlyWithCid = catalogue.map((cat) => cat.chapters.map((chap) => chap.cid).toList()).toList(); //仅提取含有cid的list
     final targetCid = Get.parameters["cid"]!;
     final indexPosition = (await compute(_findIndexPositionInCatalogue, {'catalogue': listOnlyWithCid, 'cid': targetCid}))!;
 
@@ -172,7 +172,7 @@ class ReaderController extends GetxController {
     super.onClose();
   }
 
-  //��ȡ��ʼҳ��λ��
+  //获取初始页面位置
   int getInitLocation() {
     if (readerSettingsState.value.direction == ReaderDirection.upToDown) {
       try {
@@ -245,7 +245,7 @@ class ReaderController extends GetxController {
     pageState.value = PageState.success;
   }
 
-  /// ��һҳ
+  /// 下一页
   void nextPage() {
     var value = currentIndex.value;
     var max = maxPage.value;
@@ -256,7 +256,7 @@ class ReaderController extends GetxController {
     }
   }
 
-  /// ��һҳ
+  /// 上一页
   void prevPage() {
     var value = currentIndex.value;
     if (value == 0) {
@@ -266,7 +266,7 @@ class ReaderController extends GetxController {
     }
   }
 
-  /// ��תҳ��
+  /// 跳转页数
   void jumpToPage(int page) {
     if (readerSettingsState.value.direction != ReaderDirection.upToDown && readerSettingsState.value.pageTurningAnimation) {
       paperCurlController.jumpToPage(page);
@@ -330,7 +330,7 @@ class ReaderController extends GetxController {
         cid: cid,
         aid: aid,
         readerMode: readerSettingsState.value.direction == ReaderDirection.upToDown ? kScrollReadMode : kPageReadMode,
-        // 1Ϊ����ģʽ��2Ϊ��ҳģʽ����ҳģʽ�����ҷ���Ӱ���Ķ���¼��ʹ��
+        // 1为滚动模式，2为翻页模式，翻页模式的左右方向不影响阅读记录的使用
         isDualPage: isDualPage,
         location: readerSettingsState.value.direction == ReaderDirection.upToDown ? currentLocation.value : currentIndex.value,
         progress: readerSettingsState.value.direction == ReaderDirection.upToDown ? verticalProgress.value : horizontalProgress.value,
@@ -517,7 +517,7 @@ class ReaderController extends GetxController {
   Future<bool?> pickTextStyleFile() async {
     try {
       final file = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['ttf', 'otf']);
-      if (file == null) return null; // �û�ȡ��
+      if (file == null) return null; // 用户取消
 
       final tempPath = file.path!;
 
@@ -563,7 +563,7 @@ class ReaderController extends GetxController {
     }
   }
 
-  //��������ļ��Ƿ����
+  //检查字体文件是否存在
   void checkFontFile(bool showDialog) async {
     if (readerSettingsState.value.textStyleFilePath != null && readerSettingsState.value.textFamily != null) {
       final result = await File(readerSettingsState.value.textStyleFilePath!).exists();
@@ -603,7 +603,7 @@ class ReaderController extends GetxController {
   Future<bool?> pickBgImageFile(bool isDark) async {
     try {
       final file = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['jpg', 'png', 'jpeg']);
-      if (file == null) return null; // �û�ȡ��
+      if (file == null) return null; // 用户取消
 
       final tempPath = file.path!;
 
@@ -667,18 +667,18 @@ class ReaderController extends GetxController {
   }
 }
 
-///����Ŀ���ַ����ڶ�ά�б��г��ֵ�λ��
-///���ظ�ʽ��[�������, �ڲ�����]��δ�ҵ��򷵻� null
+///查找目标字符串在二维列表中出现的位置
+///返回格式：[外层索引, 内层索引]，未找到则返回 null
 List<int>? _findIndexPositionInCatalogue(Map<String, dynamic> args) {
   final catalogue = args['catalogue'] as List<List<String>>;
   final targetCid = args['cid'] as String;
 
-  // ��������б���ͬʱ��ȡ���������б�
+  // 遍历外层列表，同时获取索引和子列表
   for (int outerIndex = 0; outerIndex < catalogue.length; outerIndex++) {
     List<String> innerList = catalogue[outerIndex];
-    // ����Ŀ���ַ����ڵ�ǰ���б��е�����
+    // 查找目标字符串在当前子列表中的索引
     int innerIndex = innerList.indexOf(targetCid);
-    // ����ҵ���������Ϊ -1��������λ��
+    // 如果找到（索引不为 -1），返回位置
     if (innerIndex != -1) {
       return [outerIndex, innerIndex];
       // return IndexPosition(volumeIndex: outerIndex, chapterIndex: innerIndex);
